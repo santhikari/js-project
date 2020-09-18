@@ -1,0 +1,147 @@
+<html>
+
+<head>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <title>
+        Museum of Art Collection
+    </title>
+    <style>
+
+    </style>
+</head>
+
+<body class="container">
+    <div class="spinner-border m-5" role="status" id="loading">
+        <span class="sr-only">Loading...</span>
+    </div>
+    <button class="btn btn-success" id="personalGallaryBtn" style="display: none;" onclick="personalGallary()">
+        Save
+    </button>
+    <div id="displayAllGallary"></div>
+    <div id="displayPersonalGallary" style="display: none">
+        Personal Gallary
+    </div>
+</body>
+<script type="text/javascript">
+    const baseUrl = 'https://collectionapi.metmuseum.org';
+    const noImageUrl = 'https://www.bsmc.net.au/wp-content/uploads/No-image-available.jpg';
+    let objects = [];
+    let objectDetails = [];
+    let gallary = false;
+    window.onload = () => {
+        localStorage.removeItem('perosonalGallary');
+        $.get(`${baseUrl}/public/collection/v1/objects`, function (data, status) {
+            objects = data.objectIDs.splice(0, 25);
+            const promiseObj = objects.map((id) => $.get(`${baseUrl}/public/collection/v1/objects/${id}`));
+            Promise.all(promiseObj).then((res) => {
+                document.getElementById('loading').style.display = "none";
+                const row = document.createElement('div');
+                row.classList.add('row');
+                objectDetails = res;
+                res.forEach((data, index) => {
+                    const col = document.createElement('div');
+                    const classList = ['col-sm-12', 'col-md-4', 'col-lg-3', 'col-xl-4', 'm-3', 'align-items-stretch'];
+                    col.classList.add(...classList);
+                    col.innerHTML = `
+                        <div class="card h-100">
+                                <div class="card-header">
+                                    <img class="card-img-top" src="${data.primaryImage || noImageUrl}" alt="${data.title}">
+                                </div>
+                                <div class="card-body">
+                                    <h5 class="card-title">${data.title}</h5>
+                                    <p class="card-text">${data.artistDisplayName}</p>
+                                </div>
+                                <div class="card-footer">
+                                    <div class="checkbox w-100">
+                                        <label>
+                                            <input type="checkbox" class="mr-1" value="" onchange="addPersonalGallary(event, ${index})">Add to Personal Gallary
+                                            </label>
+                                    </div>
+                                    <a href="${data.objectURL}" class="btn btn-primary w-100">Open link</a>
+                                </div>
+
+                        </div>
+                    `;
+                    row.appendChild(col);
+                });
+                document.getElementById('displayAllGallary').appendChild(row);
+            }).catch((err) => {
+                console.log('Error while fetching data', err);
+                alert('Error while fetching data');
+            });
+        });
+    }
+
+    const addPersonalGallary = (event, index) => {
+        const personalGallary = localStorage.getItem('perosonalGallary');
+        let data = [];
+        if (event.target.checked) {
+
+            if (personalGallary) {
+                data = JSON.parse(personalGallary);
+                data.push(objectDetails[index]);
+            } else {
+                data = [objectDetails[index]];
+            }
+        } else {
+            if (personalGallary) {
+                data = JSON.parse(personalGallary);
+                const i = data.findIndex((item) => item.objectID === objectDetails[index].objectID);
+                data.splice(i, 1);
+            }
+        }
+        const selectedCheck = $("input[type='checkbox']:checked").length;
+        if (selectedCheck === 5) {
+            $("input[type='checkbox']:not(:checked)").attr('disabled', 'disabled');
+        } else {
+            $("input[type='checkbox']:not(:checked)").removeAttr('disabled');
+        }
+
+        if (data.length) {
+            document.getElementById('personalGallaryBtn').style.display = "";
+        } else {
+            document.getElementById('personalGallaryBtn').style.display = "none";
+        }
+        localStorage.setItem('perosonalGallary', JSON.stringify(data));
+    };
+
+    const personalGallary = () => {
+        if (gallary) {
+            document.getElementById('personalGallaryBtn').style.display = "";
+        } else {
+            document.getElementById('personalGallaryBtn').style.display = "none";
+        }
+        gallary = !gallary;
+        if (gallary) {
+            $('#displayAllGallary')[0].innerHTML = '';
+            const row = document.createElement('div');
+            row.classList.add('row');
+            const res = JSON.parse(localStorage.getItem('perosonalGallary'));
+            res.forEach((data, index) => {
+                const col = document.createElement('div');
+                const classList = ['col-sm-12', 'col-md-4', 'col-lg-3', 'col-xl-4', 'm-3', 'align-items-stretch'];
+                col.classList.add(...classList);
+                col.innerHTML = `
+                    <div class="card">
+                        <div class="card-header">
+                                    <img class="card-img-top" src="${data.primaryImage || noImageUrl}" alt="${data.title}">
+                                </div>
+                            <div class="card-body">
+                                <h5 class="card-title">${data.title}</h5>
+                                <p class="card-text">${data.artistDisplayName}</p>
+                                <a href="${data.objectURL}" class="btn btn-primary w-100">Open link</a>
+                            </div>
+                    </div>
+                `;
+                row.appendChild(col);
+            });
+            document.getElementById('displayPersonalGallary').style.display = "";
+            document.getElementById('displayPersonalGallary').append(row);
+        }
+    };
+</script>
+
+</html>
